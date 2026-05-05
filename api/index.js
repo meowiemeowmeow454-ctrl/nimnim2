@@ -6,7 +6,7 @@ app.use(cors());
 app.use(express.json());
 
 const NIM_API_KEY = process.env.NIM_API_KEY;
-const NIM_MODEL = process.env.NIM_MODEL || 'deepseek-ai/deepseek-v4-pro'; // 🔥 UPDATED TO DEEPSEEK V4!
+const NIM_MODEL = process.env.NIM_MODEL || 'deepseek-ai/deepseek-v4-pro'; // 🔥 DEEPSEEK V4!
 const NIM_API_BASE = 'https://integrate.api.nvidia.com/v1';
 
 // Health check
@@ -44,7 +44,12 @@ app.post('/api/v1/chat/completions', async (req, res) => {
         messages: messages,
         temperature: temperature || 0.7,
         max_tokens: max_tokens !== undefined && max_tokens !== null ? max_tokens : 8192,
-        stream: stream || false
+        stream: stream || false,
+        extra_body: {
+          chat_template_kwargs: {
+            thinking: true  // 🔥 THINKING MODE ENABLED!
+          }
+        }
       },
       {
         headers: {
@@ -91,3 +96,4 @@ app.post('/api/v1/chat/completions', async (req, res) => {
 });
 
 module.exports = app;
+   
