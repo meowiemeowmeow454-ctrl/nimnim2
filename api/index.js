@@ -1,7 +1,39 @@
+const express = require('express');
+const cors = require('cors');
+const axios = require('axios');
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+const NIM_API_KEY = process.env.NIM_API_KEY;
+const NIM_MODEL = process.env.NIM_MODEL || 'deepseek-ai/deepseek-v4-pro';
+const NIM_API_BASE = 'https://integrate.api.nvidia.com/v1';
+
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    service: 'NVIDIA NIM Proxy - DeepSeek V4 Edition',
+    model: NIM_MODEL,
+    api_base: NIM_API_BASE
+  });
+});
+
+app.get('/api/v1/models', (req, res) => {
+  res.json({
+    object: 'list',
+    data: [{
+      id: 'deepseek-v4-pro',
+      object: 'model',
+      created: Date.now(),
+      owned_by: 'deepseek-ai'
+    }]
+  });
+});
+
 app.post('/api/v1/chat/completions', async (req, res) => {
   try {
     const { messages, temperature, max_tokens } = req.body;
-
     const response = await axios.post(
       `${NIM_API_BASE}/chat/completions`,
       {
@@ -9,7 +41,7 @@ app.post('/api/v1/chat/completions', async (req, res) => {
         messages: messages,
         temperature: temperature || 0.7,
         max_tokens: max_tokens ?? 8192,
-        stream: true, // stream from NVIDIA to keep connection alive
+        stream: true,
         extra_body: {
           chat_template_kwargs: { thinking: true }
         }
@@ -20,11 +52,10 @@ app.post('/api/v1/chat/completions', async (req, res) => {
           'Content-Type': 'application/json'
         },
         responseType: 'stream',
-        timeout: 280000 // ~4.5 min, safely under Vercel's 5 min cap
+        timeout: 280000
       }
     );
 
-    // Collect all streamed chunks
     let fullContent = '';
     let finishReason = 'stop';
     let promptTokens = 0;
@@ -55,7 +86,6 @@ app.post('/api/v1/chat/completions', async (req, res) => {
       response.data.on('error', reject);
     });
 
-    // Send back as normal non-streamed response (what Janitor expects)
     res.json({
       id: `chatcmpl-${Date.now()}`,
       object: 'chat.completion',
@@ -74,6 +104,36 @@ app.post('/api/v1/chat/completions', async (req, res) => {
     });
 
   } catch (error) {
-    // ... your existing error handling stays the same
+    console.error('NVIDIA API error:', error.response?.data || error.message);
+
+    if (error.response?.status === 429) {
+      return res.status(429).json({
+        error: {
+          message: 'Rate limit exceeded. Please wait.',
+          type: 'rate_limit_error',
+          code: 429
+        }
+      });
+    }
+
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      return res.status(error.response.status).json({
+        error: {
+          message: 'Invalid API key or unauthorized.',
+          type: 'auth_error',
+          code: error.response.status
+        }
+      });
+    }
+
+    res.status(error.response?.status || 500).json({
+      error: {
+        message: error.response?.data?.error?.message || error.message || 'NVIDIA API error',
+        type: 'api_error',
+        code: error.response?.status || 500
+      }
+    });
   }
 });
+
+module.exports = app;
