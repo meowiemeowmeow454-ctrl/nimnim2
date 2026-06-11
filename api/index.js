@@ -60,6 +60,7 @@ app.post('/api/v1/chat/completions', async (req, res) => {
 
     await new Promise((resolve, reject) => {
       response.data.on('data', (chunk) => {
+        console.log('RAW CHUNK:', chunk.toString());
         const lines = chunk.toString().split('\n').filter(l => l.trim());
         for (const line of lines) {
           if (!line.startsWith('data: ')) continue;
