@@ -7,7 +7,7 @@ app.use(cors());
 app.use(express.json());
 
 const NIM_API_KEY = process.env.NIM_API_KEY;
-const NIM_MODEL = process.env.NIM_MODEL || 'deepseek-ai/deepseek-v4-pro';
+const NIM_MODEL = process.env.NIM_MODEL || 'deepseek-ai/deepseek-v4-pro-0813';
 const NIM_API_BASE = 'https://integrate.api.nvidia.com/v1';
 
 app.get('/api/health', (req, res) => {
@@ -23,7 +23,7 @@ app.get('/api/v1/models', (req, res) => {
   res.json({
     object: 'list',
     data: [{
-      id: 'deepseek-v4-pro',
+      id: 'deepseek-ai/deepseek-v4-pro-0813',
       object: 'model',
       created: Date.now(),
       owned_by: 'deepseek-ai'
